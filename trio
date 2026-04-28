@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
+
+usage() {
+  printf '用法: %s {install|uninstall|detect|runtime|session|bridge} [参数...]\n' "${0##*/}" >&2
+  printf '定位: 仓库本地开发者工具,主要用于安装、诊断与内部调试\n' >&2
+  printf '日常使用请走 /trio\n' >&2
+}
+
+[ "$#" -eq 0 ] && { usage; exit 2; }
+cmd="$1"; shift
+case "$cmd" in
+  install)   exec "$SCRIPT_DIR/scripts/install.sh" "$@" ;;
+  uninstall) exec "$SCRIPT_DIR/scripts/uninstall.sh" "$@" ;;
+  detect)    exec "$SCRIPT_DIR/scripts/detect-deps.sh" "$@" ;;
+  runtime)   exec "$SCRIPT_DIR/scripts/trio-runtime.sh" "$@" ;;
+  session)   exec "$SCRIPT_DIR/scripts/trio-session.sh" "$@" ;;
+  bridge)    exec "$SCRIPT_DIR/scripts/trio-bridge.sh" "$@" ;;
+  *)         usage; exit 2 ;;
+esac

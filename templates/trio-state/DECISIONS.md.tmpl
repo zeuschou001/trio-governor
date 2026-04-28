@@ -1,0 +1,12 @@
+# Decisions Log
+
+决策追加式写入。消费方仅读取同时含 `What` / `Why` / `Impact` 三字段的 `## Decision:` block;其他自由文本忽略。
+
+每条决策的字段:
+
+- `## Decision: <标题>`
+- `- **Timestamp**: <RFC3339 UTC>`
+- `- **Type**: eng-review`(或 `ceo-review`)
+- `- **What**: <做什么>`
+- `- **Why**: <理由>`
+- `- **Impact**: <影响范围>`

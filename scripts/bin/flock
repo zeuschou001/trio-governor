@@ -1,0 +1,83 @@
+#!/usr/bin/env python3
+"""Minimal `flock` shim for platforms without util-linux flock (notably macOS).
+
+Supports the subset of flags trio-dev uses:
+  flock -xn <fd>
+  flock -x -w <secs> <fd>
+Exit 0 on lock acquired, 1 on failure (compatible with util-linux flock).
+The lock is taken against the open file description referenced by <fd>; since
+the calling shell opened that fd via `exec N>file`, the lock persists as long
+as the shell keeps fd N open, matching util-linux flock semantics on Linux.
+"""
+from __future__ import annotations
+
+import fcntl
+import sys
+import time
+
+
+def usage() -> None:
+    sys.stderr.write("usage: flock [-x|-s|-u] [-n|-w timeout] <fd>\n")
+    sys.exit(1)
+
+
+def parse_args(argv: list[str]) -> tuple[int, int, float | None]:
+    mode = fcntl.LOCK_EX
+    nonblock = False
+    timeout: float | None = None
+    args: list[str] = []
+    for a in argv:
+        if a.startswith("-") and not a.startswith("--") and len(a) > 2:
+            for ch in a[1:]:
+                args.append(f"-{ch}")
+        else:
+            args.append(a)
+    while args and args[0].startswith("-") and args[0] not in ("--",):
+        a = args.pop(0)
+        if a in ("-x", "-e", "--exclusive"):
+            mode = fcntl.LOCK_EX
+        elif a in ("-s", "--shared"):
+            mode = fcntl.LOCK_SH
+        elif a in ("-u", "--unlock"):
+            mode = fcntl.LOCK_UN
+        elif a in ("-n", "--nb", "--nonblock", "--nonblocking"):
+            nonblock = True
+        elif a in ("-w", "--wait", "--timeout"):
+            if not args:
+                usage()
+            timeout = float(args.pop(0))
+        else:
+            usage()
+    if args and args[0] == "--":
+        args.pop(0)
+    if not args:
+        usage()
+    try:
+        fd = int(args[0])
+    except ValueError:
+        usage()
+    flags = mode | (fcntl.LOCK_NB if nonblock or timeout is not None else 0)
+    return fd, flags, timeout
+
+
+def main() -> int:
+    fd, flags, timeout = parse_args(sys.argv[1:])
+    if timeout is None:
+        try:
+            fcntl.flock(fd, flags)
+        except BlockingIOError:
+            return 1
+        return 0
+    deadline = time.monotonic() + timeout
+    while True:
+        try:
+            fcntl.flock(fd, flags)
+            return 0
+        except BlockingIOError:
+            if time.monotonic() >= deadline:
+                return 1
+            time.sleep(0.05)
+
+
+if __name__ == "__main__":
+    sys.exit(main())

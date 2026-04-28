@@ -1,0 +1,5 @@
+.gemini/
+.claude/settings.local.json
+.trio/archive/
+.trio/bridges/
+node_modules/
